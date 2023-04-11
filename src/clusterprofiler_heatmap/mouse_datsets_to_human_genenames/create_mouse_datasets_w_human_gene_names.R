@@ -67,7 +67,6 @@ mouse_doke= mouse_doke[mouse_doke$gene %in% genesV2_mouse_doke$MGI.symbol,]
 mouse_kirita= mouse_kirita[mouse_kirita$gene %in% genesV2_mouse_kirita$MGI.symbol,]
 
 
-# WE WILL LOSE SOME GENES here because not all IDs will be converted!!
 names(genesV2_mouse_balzer)[1] <- "gene"
 names(genesV2_mouse_doke)[1] <- "gene"
 names(genesV2_mouse_kirita)[1] <- "gene"
@@ -91,7 +90,6 @@ mouse_kirita <- merge(mouse_kirita, genesV2_mouse_kirita, by="gene", sort = F)
 
 
 #---repeat code above for other groups as well-----
-
 write.csv(mouse_balzer, "Balzer__mouse__human_genenames.csv", row.names = F)
 write.csv(mouse_balzer, "Balzer__mouse__human_genenames.csv", row.names = F)
 write.csv(mouse_doke, "Doke__mouse__human_genenames.csv", row.names = F)
