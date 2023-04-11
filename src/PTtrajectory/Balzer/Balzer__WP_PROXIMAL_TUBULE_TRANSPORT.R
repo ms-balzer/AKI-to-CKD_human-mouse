@@ -21,13 +21,12 @@ set.seed(123)
 
 
 
-#======================== STEP 1: load sce object ===============================
+#======================== load sce object ===============================
 load('sce')
 
 
 
-
-#======================== STEP 2: get pathway of interest genes ===============================
+#======================== get pathway of interest genes ===============================
 pathwayofinterest <- "WP_NETWORK_MAP_OF_SARSCOV2_SIGNALING_PATHWAY"
 
 #===== Load POI and get GOI
@@ -68,7 +67,7 @@ GOI_mouse <- GOI_df$MGI.symbol
 
 
 
-#======================== STEP 3: score this gene set in the IRI dataset ===============================
+#======================== score this gene set in the IRI dataset ===============================
 #load Seurat object and convert to SingleCellExpxeriment object
 PTtrajectory_A <- readRDS("PTtrajectory_A.rds")
 dat <- PTtrajectory_A@assays$RNA@data #export normalized gene expression (not-scaled) gene by cell matrix
@@ -96,7 +95,7 @@ GO_score = apply(reads_single_phase_restricted,2,mean))
 
 
 
-#======================== STEP 4: visualize ===============================
+#======================== visualize ===============================
 #===== Violinplot
 PTtrajectory_A$GO_score <- GO_score
 PTtrajectory_A$exp.time <- plyr::mapvalues(
