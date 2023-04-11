@@ -82,7 +82,7 @@ my.seurat <- CreateSeuratObject(counts = count.mat,
 
 
 #======================== PATHWAY SCORING ===============================
-#======================== STEP 2: get pathway of interest genes ===============================
+#======================== get pathway of interest genes ===============================
 pathwayofinterest <- "WP_PROXIMAL_TUBULE_TRANSPORT"
 
 #===== Load POI and get GOI
@@ -108,7 +108,7 @@ GOI <- unique(POI$gene)
 
 
 
-#======================== STEP 3: score this gene set  ===============================
+#======================== score this gene set  ===============================
 my.seurat <- NormalizeData(my.seurat, normalization.method = "LogNormalize", scale.factor = 10000)
 my.seurat <- FindVariableFeatures(my.seurat, selection.method = "vst", nfeatures = 3000)
 all.genes <- rownames(my.seurat)
@@ -142,7 +142,7 @@ GO_score = apply(reads_single_phase_restricted,2,mean))
 
 
 
-#======================== STEP 4: visualize ===============================
+#======================== visualize ===============================
 #===== Violinplot
 
 GO_score <- GO_score[order(factor(names(GO_score), 
