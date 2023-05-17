@@ -1,11 +1,7 @@
 #1 This takes the already present IRI PT dataset in diffusion map space.
 #2 We then extract mouse orthologue genes from selected enriched gene sets.
 #3 We then score this gene set in the IRI dataset.
-#lastly, we project the enrichment score on the dataset in diffusion map space and create violin plots per cluster (exp.time) in this case
-
-#https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html#slingshot-map-pseudotime
-#16.4 Slingshot map pseudotime
-#https://bioconductor.org/packages/release/bioc/vignettes/slingshot/inst/doc/vignette.html#using-slingshot
+#4 We project the enrichment score on the dataset in diffusion map space and create violin plots per cluster (exp.time) in this case
 
 rm(list=ls())
 library(slingshot)
@@ -15,14 +11,9 @@ library(ggthemes)
 library(SingleCellExperiment)
 library(RColorBrewer)
 library(biomaRt)
-
-#setwd()
 set.seed(123)
 
 
-
-#load sce objec
-load('sce')
 
 
 
@@ -163,7 +154,7 @@ dev.off()
 
 
 
-#===== Dimplot in DiffMap space via SCE object (draw the slingshot trajectory line as well)
+#===== Dimplot in DiffMap space
 load('rd2')
 load('crv2')
 
