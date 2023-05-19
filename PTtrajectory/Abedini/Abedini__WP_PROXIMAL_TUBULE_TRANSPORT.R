@@ -17,15 +17,10 @@ set.seed(123)
 
 #load cds object
 cds <- readRDS('Abedini__cds.PT.Innjured_PT1_2.def.8.10.2022.rds')
-
-
-#---rename NA values in Groups.Def----
 cds@colData@listData$Clustergroup <- plyr::mapvalues(
   x = cds@colData@listData$orig.ident,
   from = c("HK2558","HK2596","HK2663","HK2739","HK2770","HK2774","HK2833","HK2844","HK2862","HK2867","HK2868","HK2886","HK2891","HK2893","HK2895","HK2898","HK2899"),
   to = c("CKD", "CKD", "Control", "CKD", "CKD", "CKD", "Control", "CKD", "CKD", "Control", "CKD", "CKD", "CKD", "Control", "Control", "Control", "Control"))
-
-
 cds@colData@listData$Clustergroup <- factor(cds@colData@listData$Clustergroup,
                                             levels = c("Control", "CKD"))
 
@@ -36,7 +31,6 @@ res=3e-3
 cds = cluster_cells(cds, resolution=res)
 #save clusters
 colData(cds)$clustersNEW <- cds@clusters@listData$UMAP$clusters
-
 cds@clusters@listData$UMAP$clusters <- plyr::mapvalues(
   x = cds@clusters@listData$UMAP$clusters,
   from = c("1", "2", "3", "4",
@@ -47,10 +41,8 @@ cds@clusters@listData$UMAP$clusters <- plyr::mapvalues(
          "5","2","4","1",
          "7","7", "6", "2",
          "6"))
-
 cds@clusters@listData$UMAP$clusters <- factor(cds@clusters@listData$UMAP$clusters,
                                               levels = c("1", "2", "3", "4", "5", "6", "7"))
-
 colData(cds)$clustersNEW <- cds@clusters@listData$UMAP$clusters
 
 #by clustersNEW
@@ -69,11 +61,9 @@ dev.off()
 
 
 
-#================= Convert edited CDS to Seurat, preprocess and get diffusion map =================
 #============= convert CDS to Seurat
 count.mat <- assay(cds)
 meta.df <- as.data.frame(colData(cds))
-
 my.seurat <- CreateSeuratObject(counts = count.mat,
                                 project = "my.project",
                                 assay = "RNA",
@@ -86,7 +76,6 @@ my.seurat <- CreateSeuratObject(counts = count.mat,
 pathwayofinterest <- "WP_PROXIMAL_TUBULE_TRANSPORT"
 
 #===== Load POI and get GOI
-
 #msig__H= msigdbr::msigdbr(species = "Homo sapiens", category = "H") #hallmark gene sets
 msig__C2 = msigdbr::msigdbr(species = "Homo sapiens", category = "C2") #curated gene sets
 #msig__C5 = msigdbr::msigdbr(species = "Homo sapiens", category = "C5") #ontologygene sets
@@ -103,8 +92,6 @@ colnames(msig_CP_WikiPathways) <- c("pathway", "gene")
 POI = data.frame(msig_CP_WikiPathways$pathway[msig_CP_WikiPathways$pathway %in% c(pathwayofinterest)], msig_CP_WikiPathways$gene[msig_CP_WikiPathways$pathway %in% c(pathwayofinterest)])
 colnames(POI) <- c("pathway", "gene")
 GOI <- unique(POI$gene)
-
-
 
 
 
@@ -144,7 +131,6 @@ GO_score = apply(reads_single_phase_restricted,2,mean))
 
 #======================== visualize ===============================
 #===== Violinplot
-
 GO_score <- GO_score[order(factor(names(GO_score), 
                                   levels=colnames(my.seurat)))]
 my.seurat$GO_score <- GO_score
@@ -152,18 +138,7 @@ my.seurat$GO_score <- GO_score
 
 
 #---for clustersNEW----
-
-#Seurat style
-#Idents(my.seurat) <- my.seurat$clustersNEW
-#pdf(paste0(pathwayofinterest,'_score2_by_clustersNEW_VlnPlot.pdf'), width = 4, height=4)
-#VlnPlot(my.seurat, features="GO_score", pt.size=0) +NoLegend()
-#dev.off()
-
-
-
-#plot with vioplot
 library(vioplot)
-
 makeTransparent = function(..., alpha=0.5) {
   alpha = floor(255*alpha)  
   newColor = col2rgb(col=unlist(list(...)), alpha=FALSE)
@@ -173,8 +148,6 @@ makeTransparent = function(..., alpha=0.5) {
   newColor = apply(newColor, 2, .makeTransparent,alpha=alpha)
   return(newColor)
 }
-
-
 col_palette_short <- c("#4575b4",
                                 "#91bfdb",
                                 "#e0f3f8",
@@ -182,7 +155,6 @@ col_palette_short <- c("#4575b4",
                                 "#fee090",
                                 "#fc8d59",
                                 "#d73027")
-
 col_palette_short_trans = makeTransparent(col_palette_short, alpha = 0.3)
 
 
@@ -201,8 +173,6 @@ dummy_order <- c(cluster1_barcodes, cluster2_barcodes, cluster3_barcodes,
 
 GO_score_vln <- GO_score[order(factor(names(GO_score), 
                                       levels=dummy_order))]
-
-
 
 pdf(paste0(pathwayofinterest,'_score2_clustersNEW_',res,'.pdf'), width = 9, height=6)
 facts = c(rep(1, table(my.seurat$clustersNEW)[1]),
@@ -232,27 +202,15 @@ dev.off()
 
 
 #---for Control + CKD (DKD + HKD)----
-
-#Seurat style
-#Idents(my.seurat) <- my.seurat$Clustergroup
-#pdf(paste0(pathwayofinterest,'_score2_by_Clustergroup_VlnPlot.pdf'), width = 4, height=4)
-#VlnPlot(my.seurat, features="GO_score", pt.size=0) +NoLegend()
-#dev.off()
-
 col_palette_short <- c("#91bfdb", "#b2182b")
 col_palette_short_trans = makeTransparent(col_palette_short, alpha = 0.3)
-
 
 # for Clustergroup
 cluster1_barcodes <- WhichCells(my.seurat, idents="Control")
 cluster2_barcodes <- WhichCells(my.seurat, idents="CKD")
-
 dummy_order <- c(cluster1_barcodes, cluster2_barcodes)
-
-
 GO_score_vln <- GO_score[order(factor(names(GO_score), 
                                       levels=dummy_order))]
-
 
 pdf(paste0(pathwayofinterest,'_score2_Clustergroup_',res,'.pdf'), width = 3.5, height=4)
 facts = c(rep(1, table(my.seurat$Clustergroup)[1]),
@@ -274,14 +232,11 @@ dev.off()
 
 
 
-
-
 #======================== visualize GO score in UMAP space  ===============================
 #plot pathway enrichment in umap space
 rd <- my.seurat@reductions$umap@cell.embeddings
 colnames(rd) <- c("UMAP_1", "UMAP_2")
 colnames(my.seurat@reductions$umap@cell.embeddings) <- c("UMAP_1", "UMAP_2")
-
 
 library(viridis)
 nc <- 1
@@ -299,20 +254,3 @@ for (i in nms) {
   plot(rd, col = colors, pch = 16, cex = 0.5, main = i)
 }
 dev.off()
-
-
-
-#Seurat featureplot with GO_score
-#library(viridis)
-#pdf(file = paste0(pathwayofinterest,"_FeaturePlot_umap.pdf"), width=5, height=5)
-#FeaturePlot(my.seurat,
-#           features = "GO_score", 
-#          combine = FALSE,
-#         cols=rev(inferno(100)),
-#        pt.size=1)
-#dev.off()
-
-
-
-
-
