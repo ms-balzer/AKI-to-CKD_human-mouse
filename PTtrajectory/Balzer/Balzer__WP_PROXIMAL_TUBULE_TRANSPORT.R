@@ -15,8 +15,6 @@ set.seed(123)
 
 
 
-
-
 #======================== get pathway of interest genes ===============================
 pathwayofinterest <- "WP_NETWORK_MAP_OF_SARSCOV2_SIGNALING_PATHWAY"
 
@@ -41,8 +39,6 @@ POI = data.frame(msig_WP_WikiPathways$pathway[msig_WP_WikiPathways$pathway %in% 
 colnames(POI) <- c("pathway", "gene")
 GOI <- unique(POI$gene)
 
-
-
 #===== use bioMart to convert human symbols to mouse symbols
 human = useMart(biomart="ensembl", dataset = "hsapiens_gene_ensembl", verbose = TRUE, host = "https://dec2021.archive.ensembl.org")
 mouse = useMart(biomart="ensembl", dataset = "mmusculus_gene_ensembl", verbose = TRUE, host = "https://dec2021.archive.ensembl.org")
@@ -57,13 +53,10 @@ GOI_mouse <- GOI_df$MGI.symbol
 
 
 
-
 #======================== score this gene set in the IRI dataset ===============================
 #load Seurat object and convert to SingleCellExpxeriment object
 PTtrajectory_A <- readRDS("PTtrajectory_A.rds")
 dat <- PTtrajectory_A@assays$RNA@data #export normalized gene expression (not-scaled) gene by cell matrix
-
-
 
 #subset to GOI_mouse
 dat <- dat[which(rownames(dat)%in% GOI_mouse),] #subset on lift-over rat genes
@@ -100,9 +93,6 @@ PTtrajectory_A$exp.time <- plyr::mapvalues(
 )
 table(PTtrajectory_A$exp.time)
 
-
-
-#plot
 library(vioplot)
 makeTransparent = function(..., alpha=0.5) {
   alpha = floor(255*alpha)  
@@ -152,12 +142,9 @@ dev.off()
 
 
 
-
-
-#===== Dimplot in DiffMap space
+#===== Dimplot
 load('rd2')
 load('crv2')
-
 library(viridis)
 nc <- 1
 GOscore_df <- data.frame(PTtrajectory_A$GO_score)
@@ -175,4 +162,3 @@ for (i in nms) {
   lines(crv2, lwd = 3, col = 'black')
 }
 dev.off()
-
