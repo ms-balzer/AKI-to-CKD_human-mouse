@@ -1,8 +1,5 @@
 library(biomaRt)
-
-
 set.seed(123)
-# setwd()
 
 
 mouse_balzer <- read.csv("Balzer__mouse.csv", header=TRUE)
