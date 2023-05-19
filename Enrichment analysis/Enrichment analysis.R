@@ -17,13 +17,12 @@ library(clusterProfiler)
 library(msigdbr)
 require(remotes)
 library(europepmc)
-
 set.seed(123)
-# setwd()
+
 
 
 #---MSigDB get gene sets information and combine them to "msig_combined"----
-#http://www.gsea-msigdb.org/gsea/msigdb/collections.jsp
+# http://www.gsea-msigdb.org/gsea/msigdb/collections.jsp
 
 # msigdbr::msigdbr_species() #show species
 # print(msigdbr::msigdbr_collections(), n=23) #show all rows of msigdbr::msigdbr_collections()
@@ -40,7 +39,7 @@ msig_CP_WikiPathways = data.frame(msig__C2$gs_name[msig__C2$gs_subcat %in% c("CP
 msig_GO_BP = data.frame(msig__C5$gs_name[msig__C5$gs_subcat %in% c("GO:BP")], msig__C5$gene_symbol[msig__C5$gs_subcat %in% c("GO:BP")])
 msig_hallmark = data.frame(msig__H$gs_name, msig__H$gene_symbol)
 
-#changing columnames
+# changing columnames
 colnames(msig_CP_BioCarta) <- c('pathway', 'genes')
 colnames(msig_CP_KEGG) <- c("pathway", "genes")
 colnames(msig_CP_PID) <- c("pathway", "genes")
@@ -49,9 +48,8 @@ colnames(msig_CP_WikiPathways) <- c("pathway", "genes")
 colnames(msig_GO_BP) <- c("pathway", "genes")
 colnames(msig_hallmark) <- c("pathway", "genes")
 
-#combining columns
+# combining columns
 msig_combined <- rbind(msig_CP_BioCarta, msig_CP_KEGG, msig_CP_PID, msig_CP_Reactome, msig_CP_WikiPathways, msig_GO_BP, msig_hallmark)
-
 
 # reading .csv-files
 human_Hinze = read.csv("Hinze__human.csv", header=T)
@@ -63,7 +61,7 @@ mouse_Doke = read.csv("Doke__mouse__human_genenames.csv", header=T)
 mouse_Kirita = read.csv("Kirita__mouse__human_genenames.csv", header=T)
 
 
-#remove column mouse "gene"
+# remove column mouse "gene"
 #mouse_Balzer_3groups$gene <- NULL   # short alternative to subset()
 mouse_Balzer$gene <- NULL   # short alternative to subset()
 mouse_Doke$gene <- NULL   # short alternative to subset()
@@ -185,7 +183,7 @@ mouse_Kirita_12hours <- mouse_Kirita_12hours[order(mouse_Kirita_12hours$avg_log2
 mouse_Kirita_12hours %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Kirita_12hours
 mouse_Kirita_12hours <- mouse_Kirita_12hours$gene
 
-# for Kirita_2d, _14d and _6weeks were only 12 (1,0,11) enriched terms found, they were therefor excluded
+# for Kirita_2d, _14d and _6weeks were only 12 (1,0,11) enriched terms found, they were therefore excluded
 mouse_Kirita <- list(mouse_Kirita_Control=mouse_Kirita_Control,
                      mouse_Kirita_4hours=mouse_Kirita_4hours,
                      mouse_Kirita_12hours=mouse_Kirita_12hours)
