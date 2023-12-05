@@ -4,7 +4,7 @@ library(viridis)
 library(ComplexHeatmap)
 set.seed(123)
 rm(list=ls())
-setwd('/.../aki_to_ckd')
+setwd('/../2__Jaccard\ index/')
 
 
 
@@ -27,6 +27,7 @@ jaccard(a,b)
 #============= visualize heatmap ===================================
 jaccard_mt <- read.csv('jaccard_index.csv', row.names=1)
 jaccard_mt[jaccard_mt==1] <- -Inf
+max_col <- max(jaccard_mt) #0.3773431
 jaccard_mt[jaccard_mt==-Inf] <- 1
 
 my_palette <- colorRampPalette(c("white", "red"))(n = 74)
