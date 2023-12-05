@@ -17,19 +17,18 @@ library(clusterProfiler)
 library(msigdbr)
 require(remotes)
 library(europepmc)
+library(viridis)
 set.seed(123)
+rm(list=ls())
+setwd('/.../aki_to_ckd')
 
 
 
-#---MSigDB get gene sets information and combine them to "msig_combined"----
-# http://www.gsea-msigdb.org/gsea/msigdb/collections.jsp
-
-# msigdbr::msigdbr_species() #show species
-# print(msigdbr::msigdbr_collections(), n=23) #show all rows of msigdbr::msigdbr_collections()
-
+#---Load MSigDB get gene sets information and combine them to "msig_combined_gene_sets"----
+#http://www.gsea-msigdb.org/gsea/msigdb/collections.jsp
 msig__H= msigdbr::msigdbr(species = "Homo sapiens", category = "H") #hallmark gene sets
 msig__C2 = msigdbr::msigdbr(species = "Homo sapiens", category = "C2") #curated gene sets
-msig__C5 = msigdbr::msigdbr(species = "Homo sapiens", category = "C5") #ontologygene sets
+msig__C5 = msigdbr::msigdbr(species = "Homo sapiens", category = "C5") #ontology gene sets
 
 msig_CP_BioCarta = data.frame(msig__C2$gs_name[msig__C2$gs_subcat %in% c("CP:BIOCARTA")], msig__C2$gene_symbol[msig__C2$gs_subcat %in% c("CP:BIOCARTA")])
 msig_CP_KEGG = data.frame(msig__C2$gs_name[msig__C2$gs_subcat %in% c("CP:KEGG")], msig__C2$gene_symbol[msig__C2$gs_subcat %in% c("CP:KEGG")])
@@ -39,7 +38,7 @@ msig_CP_WikiPathways = data.frame(msig__C2$gs_name[msig__C2$gs_subcat %in% c("CP
 msig_GO_BP = data.frame(msig__C5$gs_name[msig__C5$gs_subcat %in% c("GO:BP")], msig__C5$gene_symbol[msig__C5$gs_subcat %in% c("GO:BP")])
 msig_hallmark = data.frame(msig__H$gs_name, msig__H$gene_symbol)
 
-# changing columnames
+#changing column names
 colnames(msig_CP_BioCarta) <- c('pathway', 'genes')
 colnames(msig_CP_KEGG) <- c("pathway", "genes")
 colnames(msig_CP_PID) <- c("pathway", "genes")
@@ -48,520 +47,446 @@ colnames(msig_CP_WikiPathways) <- c("pathway", "genes")
 colnames(msig_GO_BP) <- c("pathway", "genes")
 colnames(msig_hallmark) <- c("pathway", "genes")
 
-# combining columns
-msig_combined <- rbind(msig_CP_BioCarta, msig_CP_KEGG, msig_CP_PID, msig_CP_Reactome, msig_CP_WikiPathways, msig_GO_BP, msig_hallmark)
-
-# reading .csv-files
-human_Hinze = read.csv("Hinze__human.csv", header=T)
-human_Lake = read.csv("Lake__human.csv", header=T)
-human_Abedini = read.csv("Abedini__human.csv")
-
-mouse_Balzer = read.csv("Balzer__mouse__human_genenames.csv", header=T)
-mouse_Doke = read.csv("Doke__mouse__human_genenames.csv", header=T)
-mouse_Kirita = read.csv("Kirita__mouse__human_genenames.csv", header=T)
+#combining columns
+msig_combined_gene_sets <- rbind(msig_CP_BioCarta, msig_CP_KEGG, msig_CP_PID, msig_CP_Reactome, msig_CP_WikiPathways, msig_GO_BP, msig_hallmark)
 
 
-# remove column mouse "gene"
-#mouse_Balzer_3groups$gene <- NULL   # short alternative to subset()
-mouse_Balzer$gene <- NULL   # short alternative to subset()
-mouse_Doke$gene <- NULL   # short alternative to subset()
-mouse_Kirita$gene <- NULL   # short alternative to subset()
 
-# making sure columnnames are matching
-#names(mouse_Balzer_3groups)[names(mouse_Balzer_3groups) == "HGNC.symbol"] <- "gene"
-names(mouse_Balzer)[names(mouse_Balzer) == "HGNC.symbol"] <- "gene"
-names(mouse_Doke)[names(mouse_Doke) == "HGNC.symbol"] <- "gene"
-names(mouse_Kirita)[names(mouse_Kirita) == "HGNC.symbol"] <- "gene"
-names(human_Abedini)[names(human_Abedini) == "X"] <- "gene"
+#---Load DEGs----
+human_hinze_2groups = read.csv("Hinze__human.csv", header=T)
+human_lake_3groups = read.csv("Lake__human.csv", header=T)
+human_abedini_2groups = read.csv("Abedini__human.csv")
+mouse_balzer_7groups = read.csv("Balzer__mouse__DEGs_by_exp.time_7groups_HUMAN_genenames.csv", header=T)
+mouse_doke_2groups = read.csv("Doke__mouse__DEGs_by_Groups_2groups_HUMAN_genenames.csv", header=T)
+mouse_kirita_6groups = read.csv("Kirita__mouse__DEGs_by_time.pod_6groups_HUMAN_genenames.csv", header=T)
 
-#names(mouse_Balzer_3groups)[names(mouse_Balzer_3groups) == "avg_logFC"] <- "avg_log2FC"
-names(mouse_Balzer)[names(mouse_Balzer) == "avg_logFC"] <- "avg_log2FC"
+mouse_balzer_7groups$gene <- NULL
+mouse_doke_2groups$gene <- NULL
+mouse_kirita_6groups$gene <- NULL
+names(mouse_balzer_7groups)[names(mouse_balzer_7groups) == "HGNC.symbol"] <- "gene"
+names(mouse_doke_2groups)[names(mouse_doke_2groups) == "HGNC.symbol"] <- "gene"
+names(mouse_kirita_6groups)[names(mouse_kirita_6groups) == "HGNC.symbol"] <- "gene"
+names(human_abedini_2groups)[names(human_abedini_2groups) == "X"] <- "gene"
+names(mouse_balzer_7groups)[names(mouse_balzer_7groups) == "avg_logFC"] <- "avg_log2FC"
 
 
-#---prepare lists for Clusterprofiler----
 
-# define cluster
-
+#---Prepare lists for clusterprofiler----
 # mouse Balzer 7 groups
-mouse_Balzer_Control <- subset(mouse_Balzer, cluster=="Control")
-mouse_Balzer_Control <- subset(mouse_Balzer_Control, avg_log2FC > 0)
-mouse_Balzer_Control <- subset(mouse_Balzer_Control, p_val_adj < 0.05)
-mouse_Balzer_Control <- mouse_Balzer_Control[order(mouse_Balzer_Control$avg_log2FC, decreasing=T),]
-mouse_Balzer_Control %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_Control
-mouse_Balzer_Control <- mouse_Balzer_Control$gene
+mouse_balzer7_Control <- subset(mouse_balzer_7groups, cluster=="Control")
+mouse_balzer7_Control <- subset(mouse_balzer7_Control, avg_log2FC > 0)
+mouse_balzer7_Control <- subset(mouse_balzer7_Control, p_val_adj < 0.05)
+mouse_balzer7_Control <- mouse_balzer7_Control[order(mouse_balzer7_Control$avg_log2FC, decreasing=T),]
+mouse_balzer7_Control %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_Control
+mouse_balzer7_Control <- mouse_balzer7_Control$gene
 
-mouse_Balzer_AKI_1d <- subset(mouse_Balzer, cluster=="IRI_short_1")
-mouse_Balzer_AKI_1d <- subset(mouse_Balzer_AKI_1d, avg_log2FC > 0)
-mouse_Balzer_AKI_1d <- subset(mouse_Balzer_AKI_1d, p_val_adj < 0.05)
-mouse_Balzer_AKI_1d <- mouse_Balzer_AKI_1d[order(mouse_Balzer_AKI_1d$avg_log2FC, decreasing=T),]
-mouse_Balzer_AKI_1d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_AKI_1d
-mouse_Balzer_AKI_1d <- mouse_Balzer_AKI_1d$gene
+mouse_balzer7_AKI_1d <- subset(mouse_balzer_7groups, cluster=="IRI_short_1")
+mouse_balzer7_AKI_1d <- subset(mouse_balzer7_AKI_1d, avg_log2FC > 0)
+mouse_balzer7_AKI_1d <- subset(mouse_balzer7_AKI_1d, p_val_adj < 0.05)
+mouse_balzer7_AKI_1d <- mouse_balzer7_AKI_1d[order(mouse_balzer7_AKI_1d$avg_log2FC, decreasing=T),]
+mouse_balzer7_AKI_1d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_AKI_1d
+mouse_balzer7_AKI_1d <- mouse_balzer7_AKI_1d$gene
 
-mouse_Balzer_AKI_3d <- subset(mouse_Balzer, cluster=="IRI_short_3")
-mouse_Balzer_AKI_3d <- subset(mouse_Balzer_AKI_3d, avg_log2FC > 0)
-mouse_Balzer_AKI_3d <- subset(mouse_Balzer_AKI_3d, p_val_adj < 0.05)
-mouse_Balzer_AKI_3d <- mouse_Balzer_AKI_3d[order(mouse_Balzer_AKI_3d$avg_log2FC, decreasing=T),]
-mouse_Balzer_AKI_3d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_AKI_3d
-mouse_Balzer_AKI_3d <- mouse_Balzer_AKI_3d$gene
+mouse_balzer7_AKI_3d <- subset(mouse_balzer_7groups, cluster=="IRI_short_3")
+mouse_balzer7_AKI_3d <- subset(mouse_balzer7_AKI_3d, avg_log2FC > 0)
+mouse_balzer7_AKI_3d <- subset(mouse_balzer7_AKI_3d, p_val_adj < 0.05)
+mouse_balzer7_AKI_3d <- mouse_balzer7_AKI_3d[order(mouse_balzer7_AKI_3d$avg_log2FC, decreasing=T),]
+mouse_balzer7_AKI_3d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_AKI_3d
+mouse_balzer7_AKI_3d <- mouse_balzer7_AKI_3d$gene
 
-mouse_Balzer_AKI_14d <- subset(mouse_Balzer, cluster=="IRI_short_14")
-mouse_Balzer_AKI_14d <- subset(mouse_Balzer_AKI_14d, avg_log2FC > 0)
-mouse_Balzer_AKI_14d <- subset(mouse_Balzer_AKI_14d, p_val_adj < 0.05)
-mouse_Balzer_AKI_14d <- mouse_Balzer_AKI_14d[order(mouse_Balzer_AKI_14d$avg_log2FC, decreasing=T),]
-mouse_Balzer_AKI_14d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_AKI_14d
-mouse_Balzer_AKI_14d <- mouse_Balzer_AKI_14d$gene
+mouse_balzer7_AKI_14d <- subset(mouse_balzer_7groups, cluster=="IRI_short_14")
+mouse_balzer7_AKI_14d <- subset(mouse_balzer7_AKI_14d, avg_log2FC > 0)
+mouse_balzer7_AKI_14d <- subset(mouse_balzer7_AKI_14d, p_val_adj < 0.05)
+mouse_balzer7_AKI_14d <- mouse_balzer7_AKI_14d[order(mouse_balzer7_AKI_14d$avg_log2FC, decreasing=T),]
+mouse_balzer7_AKI_14d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_AKI_14d
+mouse_balzer7_AKI_14d <- mouse_balzer7_AKI_14d$gene
 
-mouse_Balzer_CKD_1d <- subset(mouse_Balzer, cluster=="IRI_long_1")
-mouse_Balzer_CKD_1d <- subset(mouse_Balzer_CKD_1d, avg_log2FC > 0)
-mouse_Balzer_CKD_1d <- subset(mouse_Balzer_CKD_1d, p_val_adj < 0.05)
-mouse_Balzer_CKD_1d <- mouse_Balzer_CKD_1d[order(mouse_Balzer_CKD_1d$avg_log2FC, decreasing=T),]
-mouse_Balzer_CKD_1d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_CKD_1d
-mouse_Balzer_CKD_1d <- mouse_Balzer_CKD_1d$gene
+mouse_balzer7_CKD_1d <- subset(mouse_balzer_7groups, cluster=="IRI_long_1")
+mouse_balzer7_CKD_1d <- subset(mouse_balzer7_CKD_1d, avg_log2FC > 0)
+mouse_balzer7_CKD_1d <- subset(mouse_balzer7_CKD_1d, p_val_adj < 0.05)
+mouse_balzer7_CKD_1d <- mouse_balzer7_CKD_1d[order(mouse_balzer7_CKD_1d$avg_log2FC, decreasing=T),]
+mouse_balzer7_CKD_1d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_CKD_1d
+mouse_balzer7_CKD_1d <- mouse_balzer7_CKD_1d$gene
 
-mouse_Balzer_CKD_3d <- subset(mouse_Balzer, cluster=="IRI_long_3")
-mouse_Balzer_CKD_3d <- subset(mouse_Balzer_CKD_3d, avg_log2FC > 0)
-mouse_Balzer_CKD_3d <- subset(mouse_Balzer_CKD_3d, p_val_adj < 0.05)
-mouse_Balzer_CKD_3d <- mouse_Balzer_CKD_3d[order(mouse_Balzer_CKD_3d$avg_log2FC, decreasing=T),]
-mouse_Balzer_CKD_3d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_CKD_3d
-mouse_Balzer_CKD_3d <- mouse_Balzer_CKD_3d$gene
+mouse_balzer7_CKD_3d <- subset(mouse_balzer_7groups, cluster=="IRI_long_3")
+mouse_balzer7_CKD_3d <- subset(mouse_balzer7_CKD_3d, avg_log2FC > 0)
+mouse_balzer7_CKD_3d <- subset(mouse_balzer7_CKD_3d, p_val_adj < 0.05)
+mouse_balzer7_CKD_3d <- mouse_balzer7_CKD_3d[order(mouse_balzer7_CKD_3d$avg_log2FC, decreasing=T),]
+mouse_balzer7_CKD_3d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_CKD_3d
+mouse_balzer7_CKD_3d <- mouse_balzer7_CKD_3d$gene
 
-mouse_Balzer_CKD_14d <- subset(mouse_Balzer, cluster=="IRI_long_14")
-mouse_Balzer_CKD_14d <- subset(mouse_Balzer_CKD_14d, avg_log2FC > 0)
-mouse_Balzer_CKD_14d <- subset(mouse_Balzer_CKD_14d, p_val_adj < 0.05)
-mouse_Balzer_CKD_14d <- mouse_Balzer_CKD_14d[order(mouse_Balzer_CKD_14d$avg_log2FC, decreasing=T),]
-mouse_Balzer_CKD_14d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Balzer_CKD_14d
-mouse_Balzer_CKD_14d <- mouse_Balzer_CKD_14d$gene
+mouse_balzer7_CKD_14d <- subset(mouse_balzer_7groups, cluster=="IRI_long_14")
+mouse_balzer7_CKD_14d <- subset(mouse_balzer7_CKD_14d, avg_log2FC > 0)
+mouse_balzer7_CKD_14d <- subset(mouse_balzer7_CKD_14d, p_val_adj < 0.05)
+mouse_balzer7_CKD_14d <- mouse_balzer7_CKD_14d[order(mouse_balzer7_CKD_14d$avg_log2FC, decreasing=T),]
+mouse_balzer7_CKD_14d %>% top_n(n = 100, wt = avg_log2FC) -> mouse_balzer7_CKD_14d
+mouse_balzer7_CKD_14d <- mouse_balzer7_CKD_14d$gene
 
-
-mouse_Balzer <- list(mouse_Balzer_Control=mouse_Balzer_Control,
-                     mouse_Balzer_AKI_1d=mouse_Balzer_AKI_1d,
-                     mouse_Balzer_AKI_3d=mouse_Balzer_AKI_3d,
-                     mouse_Balzer_AKI_14d=mouse_Balzer_AKI_14d,
-                     mouse_Balzer_CKD_1d=mouse_Balzer_CKD_1d,
-                     mouse_Balzer_CKD_3d=mouse_Balzer_CKD_3d,
-                     mouse_Balzer_CKD_14d=mouse_Balzer_CKD_14d)
-
+mouse_balzer_7groups <- list(mouse_balzer7_Control=mouse_balzer7_Control,
+                             mouse_balzer7_AKI_1d=mouse_balzer7_AKI_1d,
+                             mouse_balzer7_AKI_3d=mouse_balzer7_AKI_3d,
+                             mouse_balzer7_AKI_14d=mouse_balzer7_AKI_14d,
+                             mouse_balzer7_CKD_1d=mouse_balzer7_CKD_1d,
+                             mouse_balzer7_CKD_3d=mouse_balzer7_CKD_3d,
+                             mouse_balzer7_CKD_14d=mouse_balzer7_CKD_14d)
 
 # mouse Doke
-mouse_Doke_Control <- subset(mouse_Doke, cluster=="Control")
-mouse_Doke_Control <- subset(mouse_Doke_Control, avg_log2FC > 0)
-mouse_Doke_Control <- subset(mouse_Doke_Control, p_val_adj < 0.05)
-mouse_Doke_Control <- mouse_Doke_Control[order(mouse_Doke_Control$avg_log2FC, decreasing=T),]
-mouse_Doke_Control %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Doke_Control
-mouse_Doke_Control <- mouse_Doke_Control$gene
+mouse_doke_Control <- subset(mouse_doke_2groups, cluster=="Control")
+mouse_doke_Control <- subset(mouse_doke_Control, avg_log2FC > 0)
+mouse_doke_Control <- subset(mouse_doke_Control, p_val_adj < 0.05)
+mouse_doke_Control <- mouse_doke_Control[order(mouse_doke_Control$avg_log2FC, decreasing=T),]
+mouse_doke_Control %>% top_n(n = 100, wt = avg_log2FC) -> mouse_doke_Control
+mouse_doke_Control <- mouse_doke_Control$gene
 
-mouse_Doke_UUO <- subset(mouse_Doke, cluster=="UUO")
-mouse_Doke_UUO <- subset(mouse_Doke_UUO, avg_log2FC > 0)
-mouse_Doke_UUO <- subset(mouse_Doke_UUO, p_val_adj < 0.05)
-mouse_Doke_UUO <- mouse_Doke_UUO[order(mouse_Doke_UUO$avg_log2FC, decreasing=T),]
-mouse_Doke_UUO %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Doke_UUO
-mouse_Doke_UUO <- mouse_Doke_UUO$gene
+mouse_doke_UUO <- subset(mouse_doke_2groups, cluster=="UUO")
+mouse_doke_UUO <- subset(mouse_doke_UUO, avg_log2FC > 0)
+mouse_doke_UUO <- subset(mouse_doke_UUO, p_val_adj < 0.05)
+mouse_doke_UUO <- mouse_doke_UUO[order(mouse_doke_UUO$avg_log2FC, decreasing=T),]
+mouse_doke_UUO %>% top_n(n = 100, wt = avg_log2FC) -> mouse_doke_UUO
+mouse_doke_UUO <- mouse_doke_UUO$gene
 
-mouse_Doke <- list(mouse_Doke_Control=mouse_Doke_Control,
-                   mouse_Doke_UUO=mouse_Doke_UUO)
-
+mouse_doke_2groups <- list(mouse_doke_Control=mouse_doke_Control,
+                           mouse_doke_UUO=mouse_doke_UUO)
 
 # mouse Kirita
-mouse_Kirita_Control <- subset(mouse_Kirita, cluster=="Control")
-mouse_Kirita_Control <- subset(mouse_Kirita_Control, avg_log2FC > 0)
-mouse_Kirita_Control <- subset(mouse_Kirita_Control, p_val_adj < 0.05)
-mouse_Kirita_Control <- mouse_Kirita_Control[order(mouse_Kirita_Control$avg_log2FC, decreasing=T),]
-mouse_Kirita_Control %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Kirita_Control
-mouse_Kirita_Control <- mouse_Kirita_Control$gene
+mouse_kirita_Control <- subset(mouse_kirita_6groups, cluster=="Control")
+mouse_kirita_Control <- subset(mouse_kirita_Control, avg_log2FC > 0)
+mouse_kirita_Control <- subset(mouse_kirita_Control, p_val_adj < 0.05)
+mouse_kirita_Control <- mouse_kirita_Control[order(mouse_kirita_Control$avg_log2FC, decreasing=T),]
+mouse_kirita_Control %>% top_n(n = 100, wt = avg_log2FC) -> mouse_kirita_Control
+mouse_kirita_Control <- mouse_kirita_Control$gene
 
-mouse_Kirita_4hours <- subset(mouse_Kirita, cluster=="4hours")
-mouse_Kirita_4hours <- subset(mouse_Kirita_4hours, avg_log2FC > 0)
-mouse_Kirita_4hours <- subset(mouse_Kirita_4hours, p_val_adj < 0.05)
-mouse_Kirita_4hours <- mouse_Kirita_4hours[order(mouse_Kirita_4hours$avg_log2FC, decreasing=T),]
-mouse_Kirita_4hours %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Kirita_4hours
-mouse_Kirita_4hours <- mouse_Kirita_4hours$gene
+mouse_kirita_4hours <- subset(mouse_kirita_6groups, cluster=="4hours")
+mouse_kirita_4hours <- subset(mouse_kirita_4hours, avg_log2FC > 0)
+mouse_kirita_4hours <- subset(mouse_kirita_4hours, p_val_adj < 0.05)
+mouse_kirita_4hours <- mouse_kirita_4hours[order(mouse_kirita_4hours$avg_log2FC, decreasing=T),]
+mouse_kirita_4hours %>% top_n(n = 100, wt = avg_log2FC) -> mouse_kirita_4hours
+mouse_kirita_4hours <- mouse_kirita_4hours$gene
 
-mouse_Kirita_12hours <- subset(mouse_Kirita, cluster=="12hours")
-mouse_Kirita_12hours <- subset(mouse_Kirita_12hours, avg_log2FC > 0)
-mouse_Kirita_12hours <- subset(mouse_Kirita_12hours, p_val_adj < 0.05)
-mouse_Kirita_12hours <- mouse_Kirita_12hours[order(mouse_Kirita_12hours$avg_log2FC, decreasing=T),]
-mouse_Kirita_12hours %>% top_n(n = 100, wt = avg_log2FC) -> mouse_Kirita_12hours
-mouse_Kirita_12hours <- mouse_Kirita_12hours$gene
+mouse_kirita_12hours <- subset(mouse_kirita_6groups, cluster=="12hours")
+mouse_kirita_12hours <- subset(mouse_kirita_12hours, avg_log2FC > 0)
+mouse_kirita_12hours <- subset(mouse_kirita_12hours, p_val_adj < 0.05)
+mouse_kirita_12hours <- mouse_kirita_12hours[order(mouse_kirita_12hours$avg_log2FC, decreasing=T),]
+mouse_kirita_12hours %>% top_n(n = 100, wt = avg_log2FC) -> mouse_kirita_12hours
+mouse_kirita_12hours <- mouse_kirita_12hours$gene
 
-# for Kirita_2d, _14d and _6weeks were only 12 (1,0,11) enriched terms found, they were therefore excluded
-mouse_Kirita <- list(mouse_Kirita_Control=mouse_Kirita_Control,
-                     mouse_Kirita_4hours=mouse_Kirita_4hours,
-                     mouse_Kirita_12hours=mouse_Kirita_12hours)
+mouse_kirita_6weeks <- subset(mouse_kirita_6groups, cluster=="6weeks")
+mouse_kirita_6weeks <- subset(mouse_kirita_6weeks, avg_log2FC > 0)
+mouse_kirita_6weeks <- mouse_kirita_6weeks[order(mouse_kirita_6weeks$avg_log2FC, decreasing=T),]
+mouse_kirita_6weeks %>% top_n(n = 100, wt = avg_log2FC) -> mouse_kirita_6weeks
+mouse_kirita_6weeks <- mouse_kirita_6weeks$gene
 
+mouse_kirita_6groups <- list(mouse_kirita_Control=mouse_kirita_Control,
+                             mouse_kirita_4hours=mouse_kirita_4hours,
+                             mouse_kirita_12hours=mouse_kirita_12hours,
+                             mouse_kirita_6weeks=mouse_kirita_6weeks)
 
-# Hinze 2 groups
-human_Hinze_Control <- subset(human_Hinze, cluster=="Control")
-human_Hinze_Control <- subset(human_Hinze_Control, avg_log2FC > 0)
-human_Hinze_Control <- subset(human_Hinze_Control, p_val_adj < 0.05)
-human_Hinze_Control <- human_Hinze_Control[order(human_Hinze_Control$avg_log2FC, decreasing=T),]
-human_Hinze_Control %>% top_n(n = 100, wt = avg_log2FC) -> human_Hinze_Control
-human_Hinze_Control <- human_Hinze_Control$gene
+# hinze 2 groups
+human_hinze_Control <- subset(human_hinze_2groups, cluster=="Control")
+human_hinze_Control <- subset(human_hinze_Control, avg_log2FC > 0)
+human_hinze_Control <- subset(human_hinze_Control, p_val_adj < 0.05)
+human_hinze_Control <- human_hinze_Control[order(human_hinze_Control$avg_log2FC, decreasing=T),]
+human_hinze_Control %>% top_n(n = 100, wt = avg_log2FC) -> human_hinze_Control
+human_hinze_Control <- human_hinze_Control$gene
 
-human_Hinze_AKI <- subset(human_Hinze, cluster=="AKI")
-human_Hinze_AKI <- subset(human_Hinze_AKI, avg_log2FC > 0)
-human_Hinze_AKI <- subset(human_Hinze_AKI, p_val_adj < 0.05)
-human_Hinze_AKI <- human_Hinze_AKI[order(human_Hinze_AKI$avg_log2FC, decreasing=T),]
-human_Hinze_AKI %>% top_n(n = 100, wt = avg_log2FC) -> human_Hinze_AKI
-human_Hinze_AKI <- human_Hinze_AKI$gene
+human_hinze_AKI <- subset(human_hinze_2groups, cluster=="AKI")
+human_hinze_AKI <- subset(human_hinze_AKI, avg_log2FC > 0)
+human_hinze_AKI <- subset(human_hinze_AKI, p_val_adj < 0.05)
+human_hinze_AKI <- human_hinze_AKI[order(human_hinze_AKI$avg_log2FC, decreasing=T),]
+human_hinze_AKI %>% top_n(n = 100, wt = avg_log2FC) -> human_hinze_AKI
+human_hinze_AKI <- human_hinze_AKI$gene
 
-human_Hinze <- list(human_Hinze_Control=human_Hinze_Control,
-                    human_Hinze_AKI=human_Hinze_AKI)
+human_hinze_2groups <- list(human_hinze_Control=human_hinze_Control,
+                            human_hinze_AKI=human_hinze_AKI)
 
+# lake 3 groups
+human_lake_LD <- subset(human_lake_3groups, cluster=="LD")
+human_lake_LD <- subset(human_lake_LD, avg_log2FC > 0)
+human_lake_LD <- subset(human_lake_LD, p_val_adj < 0.05)
+human_lake_LD <- human_lake_LD[order(human_lake_LD$avg_log2FC, decreasing=T),]
+human_lake_LD %>% top_n(n = 100, wt = avg_log2FC) -> human_lake_LD
+human_lake_LD <- human_lake_LD$gene
 
-# Lake 3 groups
-human_Lake_LD <- subset(human_Lake, cluster=="LD")
-human_Lake_LD <- subset(human_Lake_LD, avg_log2FC > 0)
-human_Lake_LD <- subset(human_Lake_LD, p_val_adj < 0.05)
-human_Lake_LD <- human_Lake_LD[order(human_Lake_LD$avg_log2FC, decreasing=T),]
-human_Lake_LD %>% top_n(n = 100, wt = avg_log2FC) -> human_Lake_LD
-human_Lake_LD <- human_Lake_LD$gene
+human_lake_AKI <- subset(human_lake_3groups, cluster=="AKI")
+human_lake_AKI <- subset(human_lake_AKI, avg_log2FC > 0)
+human_lake_AKI <- subset(human_lake_AKI, p_val_adj < 0.05)
+human_lake_AKI <- human_lake_AKI[order(human_lake_AKI$avg_log2FC, decreasing=T),]
+human_lake_AKI %>% top_n(n = 100, wt = avg_log2FC) -> human_lake_AKI
+human_lake_AKI <- human_lake_AKI$gene
 
-human_Lake_AKI <- subset(human_Lake, cluster=="AKI")
-human_Lake_AKI <- subset(human_Lake_AKI, avg_log2FC > 0)
-human_Lake_AKI <- subset(human_Lake_AKI, p_val_adj < 0.05)
-human_Lake_AKI <- human_Lake_AKI[order(human_Lake_AKI$avg_log2FC, decreasing=T),]
-human_Lake_AKI %>% top_n(n = 100, wt = avg_log2FC) -> human_Lake_AKI
-human_Lake_AKI <- human_Lake_AKI$gene
+human_lake_CKD <- subset(human_lake_3groups, cluster=="HCKD")
+human_lake_CKD <- subset(human_lake_CKD, avg_log2FC > 0)
+human_lake_CKD <- subset(human_lake_CKD, p_val_adj < 0.05)
+human_lake_CKD <- human_lake_CKD[order(human_lake_CKD$avg_log2FC, decreasing=T),]
+human_lake_CKD %>% top_n(n = 100, wt = avg_log2FC) -> human_lake_CKD
+human_lake_CKD <- human_lake_CKD$gene
 
-human_Lake_CKD <- subset(human_Lake, cluster=="HCKD")
-human_Lake_CKD <- subset(human_Lake_CKD, avg_log2FC > 0)
-human_Lake_CKD <- subset(human_Lake_CKD, p_val_adj < 0.05)
-human_Lake_CKD <- human_Lake_CKD[order(human_Lake_CKD$avg_log2FC, decreasing=T),]
-human_Lake_CKD %>% top_n(n = 100, wt = avg_log2FC) -> human_Lake_CKD
-human_Lake_CKD <- human_Lake_CKD$gene
+human_lake_3groups <- list(human_lake_LD=human_lake_LD,
+                           human_lake_AKI=human_lake_AKI,
+                           human_lake_CKD=human_lake_CKD)
 
-human_Lake <- list(human_Lake_LD=human_Lake_LD,
-                   human_Lake_AKI=human_Lake_AKI,
-                   human_Lake_CKD=human_Lake_CKD)
+#abedini 2 groups
+human_abedini_Control<-subset(human_abedini_2groups, avg_log2FC>0)
+human_abedini_Control<-subset(human_abedini_Control, p_val<0.05)
+human_abedini_Control <- human_abedini_Control[order(human_abedini_Control$avg_log2FC, decreasing=T),]
+human_abedini_Control %>% top_n(n = 100, wt = avg_log2FC) -> human_abedini_Control
+human_abedini_Control <- human_abedini_Control$gene
 
+human_abedini_CKD<-subset(human_abedini_2groups, avg_log2FC<0)
+human_abedini_CKD<-subset(human_abedini_CKD, p_val<0.05)
+human_abedini_CKD <- human_abedini_CKD[order(human_abedini_CKD$avg_log2FC, decreasing=F),]
+human_abedini_CKD %>% top_n(n = -100, wt = avg_log2FC) -> human_abedini_CKD
+human_abedini_CKD <- human_abedini_CKD$gene
 
-#Abedini 2 groups
-human_Abedini_Control<-subset(human_Abedini, avg_log2FC>0)
-human_Abedini_Control<-subset(human_Abedini_Control, p_val<0.05)
-human_Abedini_Control <- human_Abedini_Control[order(human_Abedini_Control$avg_log2FC, decreasing=T),]
-human_Abedini_Control %>% top_n(n = 100, wt = avg_log2FC) -> human_Abedini_Control
-human_Abedini_Control <- human_Abedini_Control$gene
-
-human_Abedini_CKD<-subset(human_Abedini, avg_log2FC<0)
-human_Abedini_CKD<-subset(human_Abedini_CKD, p_val<0.05)
-human_Abedini_CKD <- human_Abedini_CKD[order(human_Abedini_CKD$avg_log2FC, decreasing=F),]
-human_Abedini_CKD %>% top_n(n = -100, wt = avg_log2FC) -> human_Abedini_CKD
-human_Abedini_CKD <- human_Abedini_CKD$gene
-
-human_Abedini <- list(human_Abedini_Control=human_Abedini_Control,
-                      human_Abedini_CKD=human_Abedini_CKD)
-
-
-
-
-# prepare list for Clusterprofiler
-mice_x_human <- list(m_Kirita_Control=mouse_Kirita_Control,
-                     h_Hinze_Control=human_Hinze_Control,
-                     h_Lake_LD=human_Lake_LD,
-                     m_Balzer_Control=mouse_Balzer_Control,
-                     m_Doke_Control=mouse_Doke_Control,
-                     h_Abedini_Control=human_Abedini_Control,
-                     m_Balzer_AKI_14d=mouse_Balzer_AKI_14d, #7 Control
-                     m_Kirita_4hours=mouse_Kirita_4hours,
-                     m_Kirita_12hours=mouse_Kirita_12hours,
-                     m_Balzer_AKI_1d=mouse_Balzer_AKI_1d,
-                     h_Lake_AKI=human_Lake_AKI,
-                     h_Hinze_AKI=human_Hinze_AKI,
-                     m_Balzer_AKI_3d=mouse_Balzer_AKI_3d, #6 AKI
-                     h_Abedini_CKD=human_Abedini_CKD,
-                     m_Balzer_CKD_3d=mouse_Balzer_CKD_3d,
-                     h_Lake_CKD=human_Lake_CKD,
-                     m_Doke_UUO=mouse_Doke_UUO,
-                     m_Balzer_CKD_1d=mouse_Balzer_CKD_1d,
-                     m_Balzer_CKD_14d=mouse_Balzer_CKD_14d) #6 CKD
+human_abedini_2groups <- list(human_abedini_Control=human_abedini_Control,
+                              human_abedini_CKD=human_abedini_CKD)
 
 
-#---compare DEGs with UpSetR-----
-upset_mice_x_human<-UpSetR::fromList(mice_x_human)
 
-pdf("upsetplot_mice_x_human_DEGs.pdf", height=25, width=20)
-UpSetR::upset(upset_mice_x_human, nsets=19, shade.color = 329, color.pal = 589,
-              line.size=1.4, point.size=3, text.scale = 3,
-              keep.order=T,
-              sets=c("m_Balzer_CKD_14d", "m_Balzer_CKD_3d", "m_Balzer_CKD_1d",
-                     "m_Doke_UUO", "h_Lake_CKD", "h_Abedini_CKD", # 6 CKD
-                     #"m_Kirita_6weeks", "m_Kirita_14d", "m_Kirita_2d",
-                     "m_Balzer_AKI_3d", "m_Balzer_AKI_1d",
-                     "m_Kirita_4hours", "m_Kirita_12hours", 
-                     "h_Lake_AKI", "h_Hinze_AKI", # 6 AKI
-                     "m_Balzer_AKI_14d",
-                     "h_Lake_LD","h_Hinze_Control", "h_Abedini_Control",
-                     "m_Balzer_Control", "m_Kirita_Control", "m_Doke_Control"# 7 Control
-              ),
-              queries=
-                list(list(query=intersects,
-                          params=list("m_Kirita_4hours", "m_Kirita_12hours"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Doke_Control", "m_Balzer_AKI_14d"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Doke_Control", "m_Balzer_Control"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Abedini_Control", "h_Lake_LD"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_CKD_3d", "m_Balzer_AKI_3d"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_AKI_3d", "m_Balzer_AKI_14d"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Hinze_Control", "m_Kirita_Control"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Hinze_AKI", "h_Lake_AKI"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_AKI_1d", "m_Balzer_CKD_1d"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Hinze_Control", "h_Abedini_Control"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_AKI_1d", "m_Kirita_12hours"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_Control", "m_Doke_UUO"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_AKI_3d", "m_Doke_UUO"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_CKD_1d", "h_Lake_LD"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_CKD_1d", "m_Balzer_CKD_3d"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Balzer_CKD_1d", "m_Balzer_CKD_14d"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Kirita_Control", "m_Balzer_Control"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Hinze_AKI", "h_Lake_LD"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Hinze_AKI", "h_Abedini_CKD"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("h_Lake_AKI","h_Abedini_CKD"),
-                          color="red", active=T),
-                     list(query=intersects,
-                          params=list("m_Doke_Control", "h_Lake_CKD"),
-                          color="red", active=T)
-                ))
+#---Prepare dataset list----
+mice_x_human_reduced <- list(Abedini_Health=human_abedini_Control,
+                             Balzer_Health=mouse_balzer7_Control,
+                             Doke_Health=mouse_doke_Control,
+                             Hinze_Health=human_hinze_Control,
+                             Kirita_Health=mouse_kirita_Control,
+                             Lake_Health=human_lake_LD,
+                             Balzer_Recovery=mouse_balzer7_AKI_14d,
+                             Balzer_AKI=mouse_balzer7_CKD_1d,
+                             Hinze_AKI=human_hinze_AKI,
+                             Kirita_AKI=mouse_kirita_12hours,
+                             Lake_AKI=human_lake_AKI,
+                             Abedini_CKD=human_abedini_CKD,
+                             Balzer_CKD=mouse_balzer7_CKD_14d,
+                             Doke_CKD=mouse_doke_UUO,                     
+                             Lake_CKD=human_lake_CKD,
+                             Kirita_CKD=mouse_kirita_6weeks)
+
+#UpSetPlot for top100DEG lists
+m = make_comb_mat(mice_x_human_reduced, mode = "distinct")
+m <- m[comb_degree(m) <= 2]
+tm = t(m)
+tm[reverse(comb_name(tm)), reverse(set_name(tm))]
+pdf('../Results/Top100DEGs_reduceddatasets_UpSetPlot_transposed_v4.pdf', width=6, height=10)
+UpSet(tm, 
+      set_order = names(mice_x_human_reduced),
+      comb_order = order(-comb_size(tm)),
+      pt_size = unit(5, "mm"), 
+      lwd = 3,
+      comb_col = c("black", "red")[comb_degree(tm)],
+      top_annotation = HeatmapAnnotation(show_legend=F,
+                                         "Set size" = anno_barplot(set_size(tm), 
+                                                                   border = FALSE, 
+                                                                   gp = gpar(fill = "black"), 
+                                                                   width = unit(2, "cm")
+                                         ),
+                                         Phenotype = c(rep("Health", 6), rep("Recovery", 1), rep("AKI", 4), rep("CKD", 5)),
+                                         col=list(Phenotype = c("Health"="#336600", "Recovery"="yellow","AKI"="red","CKD"="darkred")),
+                                         annotation_name_side = "left", 
+                                         annotation_name_rot = 0
+      ),
+      right_annotation = rowAnnotation(show_legend=F,
+                                       Degree = as.character(comb_degree(tm)),
+                                       col=list(Degree = c("1"="black", "2"="red")),
+                                       "Intersection\nsize" = anno_barplot(comb_size(tm), 
+                                                                           border = FALSE, 
+                                                                           gp = gpar(fill = "black"), 
+                                                                           height = unit(2, "cm"),
+                                                                           add_numbers = T,
+                                                                           side = "top"))
+      
+)
 dev.off()
 
 
 
+#---compare with Clusterprofiler----
+cp_mice_x_human_reduced = clusterProfiler::compareCluster(geneCluster = mice_x_human_reduced, 
+                                                          fun = "enricher", 
+                                                          TERM2GENE = msig_combined_gene_sets)
+cp_mice_x_human_reduced
+#.. number of enriched terms found for each gene cluster:
+#..   Abedini_Health: 223 
+#..   Balzer_Health: 158 
+#..   Doke_Health: 179 
+#..   Hinze_Health: 33 
+#..   Kirita_Health: 16 
+#..   Lake_Health: 173 
+#..   Balzer_Recovery: 213 
+#..   Balzer_AKI: 514 
+#..   Hinze_AKI: 298 
+#..   Kirita_AKI: 146 
+#..   Lake_AKI: 374 
+#..   Abedini_CKD: 202 
+#..   Balzer_CKD: 953 
+#..   Doke_CKD: 39 
+#..   Lake_CKD: 122 
+#..   Kirita_CKD: 11 
 
+
+
+#---Prepare dataset list----
+mice_x_human <- list(Kirita_Health=mouse_kirita_Control,
+                     Hinze_Health=human_hinze_Control,
+                     Lake_Health=human_lake_LD,
+                     Balzer_Health=mouse_balzer7_Control,
+                     Doke_Health=mouse_doke_Control,
+                     Abedini_Health=human_abedini_Control,
+                     Balzer_Recovery=mouse_balzer7_AKI_14d,
+                     Kirita_AKI_4hr=mouse_kirita_4hours,
+                     Kirita_AKI_12hr=mouse_kirita_12hours,
+                     Balzer_AKI_1d=mouse_balzer7_AKI_1d,
+                     Balzer_AKI_3d=mouse_balzer7_AKI_3d,
+                     Hinze_AKI=human_hinze_AKI,
+                     Lake_AKI=human_lake_AKI,
+                     Abedini_CKD=human_abedini_CKD,
+                     Balzer_CKD=mouse_balzer7_CKD_14d,
+                     Doke_CKD=mouse_doke_UUO,
+                     Lake_CKD=human_lake_CKD)
 
 #---compare with Clusterprofiler----
-#calculate enrichment for all clusters at once
 cp_mice_x_human = clusterProfiler::compareCluster(geneCluster = mice_x_human, 
-                                                  fun = "enricher", 
-                                                  TERM2GENE = msig_combined)
-
-
+                                                          fun = "enricher", 
+                                                          TERM2GENE = msig_combined_gene_sets)
+fwrite(cp_mice_x_human@compareClusterResult, '../Results/Enrichment_analysis.csv', row.names = T)
+cp_mice_x_human
 #.. number of enriched terms found for each gene cluster:
-#..   m_Kirita_Control: 16 
-#..   h_Hinze_Control: 33 
-#..   h_Lake_LD: 173 
-#..   m_Balzer_Control: 158 
-#..   m_Doke_Control: 179 
-#..   h_Abedini_Control: 223 
-#..   m_Balzer_AKI_14d: 213 
-#..   m_Kirita_4hours: 333 
-#..   m_Kirita_12hours: 146 
-#..   m_Balzer_AKI_1d: 248 
-#..   h_Lake_AKI: 374 
-#..   h_Hinze_AKI: 298 
-#..   m_Balzer_AKI_3d: 354 
-#..   h_Abedini_CKD: 202 
-#..   m_Balzer_CKD_3d: 470 
-#..   h_Lake_CKD: 122 
-#..   m_Doke_UUO: 39 
-#..   m_Balzer_CKD_1d: 514 
-#..   m_Balzer_CKD_14d: 953 
+#..   Kirita_Health: 16 
+#..   Hinze_Health: 33 
+#..   Lake_Health: 173 
+#..   Balzer_Health: 158 
+#..   Doke_Health: 179 
+#..   Abedini_Health: 223 
+#..   Balzer_Recovery: 213 
+#..   Kirita_AKI_4hr: 333 
+#..   Kirita_AKI_12hr: 146 
+#..   Balzer_AKI_1d: 248 
+#..   Balzer_AKI_3d: 354 
+#..   Hinze_AKI: 298 
+#..   Lake_AKI: 374 
+#..   Abedini_CKD: 202 
+#..   Balzer_CKD: 953 
+#..   Doke_CKD: 39 
+#..   Lake_CKD: 122
 
-
-
-#---heatmap-------------------------------------------------------------------
 #filter results by q-value
 qvalue_cutoff = 0.05
 cp_mice_x_human@compareClusterResult = cp_mice_x_human@compareClusterResult[which(cp_mice_x_human@compareClusterResult$qvalue < qvalue_cutoff),]
-
-#reorganize the qvalue result in matrix form, single cell clusters in columns, pathways in rows
 cp_mice_x_human_mat = xtabs(qvalue ~ ID + Cluster, data = cp_mice_x_human@compareClusterResult)
-
-#transform q-value so that low values (highly significant) have higher numbers
 cp_mice_x_human_mat = -log10(cp_mice_x_human_mat)
 cp_mice_x_human_mat[is.infinite(cp_mice_x_human_mat)] = 0
 
-
 #top5 per cluster
-test_mice_x_human <- data.frame(cp_mice_x_human_mat) #43.491   3
+test_mice_x_human <- data.frame(cp_mice_x_human_mat)
+subset_mouse_kirita_Control = subset(test_mice_x_human, Cluster == "Kirita_Health")
+subset_mouse_kirita_Control %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_kirita_Control
 
-subset_mouse_Kirita_Control = subset(test_mice_x_human, Cluster == "m_Kirita_Control")
-subset_mouse_Kirita_Control %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Kirita_Control #5   3
+subset_mouse_kirita_4hours = subset(test_mice_x_human, Cluster == "Kirita_AKI_4hr")
+subset_mouse_kirita_4hours %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_kirita_4hours
 
-subset_mouse_Kirita_4hours = subset(test_mice_x_human, Cluster == "m_Kirita_4hours")
-subset_mouse_Kirita_4hours %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Kirita_4hours #5   3
+subset_mouse_kirita_12hours = subset(test_mice_x_human, Cluster == "Kirita_AKI_12hr")
+subset_mouse_kirita_12hours %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_kirita_12hours
 
-subset_mouse_Kirita_12hours = subset(test_mice_x_human, Cluster == "m_Kirita_12hours")
-subset_mouse_Kirita_12hours %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Kirita_12hours #5   3
+subset_mouse_doke_Control = subset(test_mice_x_human, Cluster == "Doke_Health")
+subset_mouse_doke_Control %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_doke_Control
 
-#subset_mouse_Kirita_2d = subset(test_mice_x_human, Cluster == "m_Kirita_2d")
-#subset_mouse_Kirita_2d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Kirita_2d 
+subset_mouse_doke_UUO = subset(test_mice_x_human, Cluster == "Doke_CKD")
+subset_mouse_doke_UUO %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_doke_UUO
 
-#subset_mouse_Kirita_14d = subset(test_mice_x_human, Cluster == "m_Kirita_14d")
-#subset_mouse_Kirita_14d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Kirita_14d
+subset_mouse_balzer_Control = subset(test_mice_x_human, Cluster == "Balzer_Health")
+subset_mouse_balzer_Control %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_balzer_Control
 
-#subset_mouse_Kirita_6weeks = subset(test_mice_x_human, Cluster == "m_Kirita_6weeks")
-#subset_mouse_Kirita_6weeks %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Kirita_6weeks #11   3
+subset_mouse_balzer_AKI_14d = subset(test_mice_x_human, Cluster == "Balzer_Recovery")
+subset_mouse_balzer_AKI_14d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_balzer_AKI_14d
 
+subset_mouse_balzer_AKI_1d = subset(test_mice_x_human, Cluster == "Balzer_AKI_1d")
+subset_mouse_balzer_AKI_1d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_balzer_AKI_1d
 
-subset_mouse_Doke_Control = subset(test_mice_x_human, Cluster == "m_Doke_Control")
-subset_mouse_Doke_Control %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Doke_Control #5   3
+subset_mouse_balzer_AKI_3d = subset(test_mice_x_human, Cluster == "Balzer_AKI_3d")
+subset_mouse_balzer_AKI_3d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_balzer_AKI_3d
 
-subset_mouse_Doke_UUO = subset(test_mice_x_human, Cluster == "m_Doke_UUO")
-subset_mouse_Doke_UUO %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Doke_UUO #5   3
+subset_mouse_balzer_CKD_14d = subset(test_mice_x_human, Cluster == "Balzer_CKD")
+subset_mouse_balzer_CKD_14d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_balzer_CKD_14d
 
-subset_mouse_Balzer_Control = subset(test_mice_x_human, Cluster == "m_Balzer_Control")
-subset_mouse_Balzer_Control %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_Control #5   3
+subset_human_lake_Control = subset(test_mice_x_human, Cluster == "Lake_Health")
+subset_human_lake_Control %>% top_n(n = 5, wt = Freq) -> topSOI_human_lake_LD
 
-subset_mouse_Balzer_AKI_1d = subset(test_mice_x_human, Cluster == "m_Balzer_AKI_1d")
-subset_mouse_Balzer_AKI_1d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_AKI_1d #7   3
+subset_human_lake_AKI = subset(test_mice_x_human, Cluster == "Lake_AKI")
+subset_human_lake_AKI %>% top_n(n = 5, wt = Freq) -> topSOI_human_lake_AKI
 
-subset_mouse_Balzer_AKI_3d = subset(test_mice_x_human, Cluster == "m_Balzer_AKI_3d")
-subset_mouse_Balzer_AKI_3d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_AKI_3d #7   3
+subset_human_lake_CKD = subset(test_mice_x_human, Cluster == "Lake_CKD")
+subset_human_lake_CKD %>% top_n(n = 5, wt = Freq) -> topSOI_human_lake_CKD
 
-subset_mouse_Balzer_AKI_14d = subset(test_mice_x_human, Cluster == "m_Balzer_AKI_14d")
-subset_mouse_Balzer_AKI_14d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_AKI_14d #7   3
+subset_human_hinze_Control = subset(test_mice_x_human, Cluster == "Hinze_Health")
+subset_human_hinze_Control %>% top_n(n = 5, wt = Freq) -> topSOI_human_hinze_Control
 
-subset_mouse_Balzer_CKD_1d = subset(test_mice_x_human, Cluster == "m_Balzer_CKD_1d")
-subset_mouse_Balzer_CKD_1d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_CKD_1d #7   3
+subset_human_hinze_AKI = subset(test_mice_x_human, Cluster == "Hinze_AKI")
+subset_human_hinze_AKI %>%top_n(n = 5, wt = Freq) -> topSOI_human_hinze_AKI
 
-subset_mouse_Balzer_CKD_3d = subset(test_mice_x_human, Cluster == "m_Balzer_CKD_3d")
-subset_mouse_Balzer_CKD_3d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_CKD_3d #7   3
+subset_human_abedini_Control = subset(test_mice_x_human, cluster= "Abedini_Health")
+subset_human_abedini_Control %>% top_n(n=5, wt=Freq) -> topSOI_human_abedini_Control
 
-subset_mouse_Balzer_CKD_14d = subset(test_mice_x_human, Cluster == "m_Balzer_CKD_14d")
-subset_mouse_Balzer_CKD_14d %>% top_n(n = 5, wt = Freq) -> topSOI_mouse_Balzer_CKD_14d #7   3
+subset_human_abedini_CKD<-subset(test_mice_x_human, cluster="Abedini_CKD")
+subset_human_abedini_CKD %>% top_n(n=5, wt=Freq) -> topSOI_human_abedini_CKD
 
-subset_human_Lake_Control = subset(test_mice_x_human, Cluster == "h_Lake_LD")
-subset_human_Lake_Control %>% top_n(n = 5, wt = Freq) -> topSOI_human_Lake_LD #5   3
-
-subset_human_Lake_AKI = subset(test_mice_x_human, Cluster == "h_Lake_AKI")
-subset_human_Lake_AKI %>% top_n(n = 5, wt = Freq) -> topSOI_human_Lake_AKI #5   3
-
-subset_human_Lake_CKD = subset(test_mice_x_human, Cluster == "h_Lake_CKD")
-subset_human_Lake_CKD %>% top_n(n = 5, wt = Freq) -> topSOI_human_Lake_CKD #5   3
-
-subset_human_Hinze_Control = subset(test_mice_x_human, Cluster == "h_Hinze_Control")
-subset_human_Hinze_Control %>% top_n(n = 5, wt = Freq) -> topSOI_human_Hinze_Control #5   3
-
-subset_human_Hinze_AKI = subset(test_mice_x_human, Cluster == "h_Hinze_AKI")
-subset_human_Hinze_AKI %>%top_n(n = 5, wt = Freq) -> topSOI_human_Hinze_AKI #5   3
-
-subset_human_Abedini_Control = subset(test_mice_x_human, cluster= "human_Abedini_Control")
-subset_human_Abedini_Control %>% top_n(n=5, wt=Freq) -> topSOI_human_Abedini_Control #5   3
-
-subset_human_Abedini_CKD<-subset(test_mice_x_human, cluster="human_Abedini_CKD")
-subset_human_Abedini_CKD %>% top_n(n=5, wt=Freq) -> topSOI_human_Abedini_CKD #5   3
-
-
-
-topSOI_all <- rbind(topSOI_human_Hinze_Control, topSOI_mouse_Kirita_Control,
-                    topSOI_mouse_Doke_Control, topSOI_mouse_Balzer_Control, 
-                    topSOI_human_Lake_LD, topSOI_mouse_Balzer_AKI_14d,
-                    topSOI_mouse_Kirita_4hours, topSOI_mouse_Kirita_12hours,
-                    topSOI_mouse_Balzer_AKI_1d, topSOI_mouse_Balzer_AKI_3d,
-                    topSOI_human_Lake_AKI, topSOI_human_Hinze_AKI,
-                    topSOI_mouse_Balzer_CKD_1d, topSOI_mouse_Balzer_CKD_3d,
-                    topSOI_mouse_Balzer_CKD_14d, topSOI_human_Lake_CKD, topSOI_mouse_Doke_UUO,
-                    topSOI_human_Abedini_Control, topSOI_human_Abedini_CKD)
-
-
-#these are the combined top5 enriched terms per cluster, not unique!
-# topSOI_all$ID
-#87   3
-
+topSOI_all <- rbind(topSOI_human_abedini_Control, 
+                    topSOI_mouse_balzer_Control, 
+                    topSOI_mouse_doke_Control, 
+                    topSOI_human_hinze_Control, 
+                    topSOI_mouse_kirita_Control,
+                    topSOI_human_lake_LD,
+                    topSOI_mouse_balzer_AKI_14d,
+                    topSOI_mouse_balzer_AKI_1d,
+                    topSOI_mouse_balzer_AKI_3d,
+                    topSOI_human_hinze_AKI,
+                    topSOI_mouse_kirita_4hours,
+                    topSOI_mouse_kirita_12hours,
+                    topSOI_human_lake_AKI, 
+                    topSOI_human_abedini_CKD,
+                    topSOI_mouse_balzer_CKD_14d, 
+                    topSOI_mouse_doke_UUO,
+                    topSOI_human_lake_CKD)
 
 #subset cp_mice_x_human_mat to these top5 per cluster
 cp_mice_x_human_mat <- cp_mice_x_human_mat[unique(topSOI_all$ID),]
 
-#any q-value lower than 10e-4 is clamped to produce a more readable heatmap
-cp_mice_x_human_mat[cp_mice_x_human_mat > 6] = 6
-dim(cp_mice_x_human_mat) #58   19
+#any q-value lower than 10e-5 is clamped to produce a more readable heatmap
+cp_mice_x_human_mat[cp_mice_x_human_mat > 5] = 5
 
 
-#---color cols by single-cell clusters----
+
+#---Heatmap of top5 enriched pathways----
 cp_mice_x_human_mat2 <- cp_mice_x_human_mat[rownames(cp_mice_x_human_mat)[order(rownames(cp_mice_x_human_mat))],]
-#dim(cp_mice_x_human_mat2) #58   17
-
-
-# order of columnss (= Cluster):
-# 7 Controls: m_Kirita_Control, h_Hinze_Control, h_Lake_LD, m_Balzer_Control, m_Doke_Control, h_Abedini_Control, m_Balzer_AKI_14d
-# 6 AKIs: m_Kirita_4hours, m_Kirita_12hours, m_Balzer_AKI_1d, h_Lake_AKI, h_Hinze_AKI, m_Balzer_AKI_3d
-# 5 CKDs: h_Abedini_CKD, m_Balzer_CKD_3d, h_Lake_CKD, m_Doke_UUO, #m_Balzer_CKD_1d, m_Balzer_CKD_14d
-
-
-cluster_colors <- c("#336600","#336600", "#336600", "#336600",
-                             "#336600", "#336600", "yellow",#7 Control
-                             "#FF0000", "#FF0000", "#FF0000", 
-                             "#FF0000", "#FF0000", "#FF0000", #6 aki
-                             "#660000", "#660000", "#660000",
-                             "#660000", "#660000", "#660000") #6 ckd
-                             
-
-names(cluster_colors) <- c("Control", "Control", "Control", "Control",
-                           "Control", "Control", "AKI recovered",  #7
-                           "AKI", "AKI", "AKI",
-                           "AKI", "AKI", "AKI", #6
-                           "CKD / severe AKI", "CKD / severe AKI", "CKD / severe AKI",
-                           "CKD / severe AKI", "CKD / severe AKI", "CKD / severe AKI") #6
-
-
-species_colors <- c("#F8C471","#85C1E9", "#85C1E9", "#F8C471",
-                             "#F8C471", "#85C1E9", "#F8C471",#7 Control
-                             "#F8C471", "#F8C471", "#F8C471", 
-                             "#85C1E9", "#85C1E9", "#F8C471", #6 aki
-                             "#85C1E9", "#F8C471", "#85C1E9",
-                             "#F8C471", "#F8C471", "#F8C471") #6 ckd
-                             
-
-names(species_colors) <- c("mouse", "human", "human", "mouse",
-                           "mouse", "human", "mouse",  #7
-                           "mouse", "mouse", "mouse",
-                           "human", "human", "mouse", #6
-                           "human", "mouse", "human",
-                           "mouse", "mouse", "mouse") #6
-
-
-
+colnames(cp_mice_x_human_mat2)
+#"Kirita_Health"   "Hinze_Health"    "Lake_Health"     "Balzer_Health"   "Doke_Health"     "Abedini_Health"  
+#"Balzer_Recovery"
+#"Kirita_AKI_4hr"  "Kirita_AKI_12hr" "Balzer_AKI_1d"   "Balzer_AKI_3d"   "Hinze_AKI"       "Lake_AKI"        
+#"Abedini_CKD"  "Balzer_CKD"      "Doke_CKD"        "Lake_CKD"  
+cluster_colors <- c("#336600","#336600", "#336600", "#336600","#336600", "#336600", 
+                    "yellow",
+                    "#FF0000", "#FF0000", "#FF0000", "#FF0000", "#FF0000", "#FF0000", 
+                    "#660000", "#660000", "#660000","#660000")
+names(cluster_colors) <- c("Health", "Health", "Health", "Health","Health", "Health", 
+                           "Recovery",  
+                           "AKI", "AKI", "AKI","AKI", "AKI","AKI",
+                           "CKD", "CKD", "CKD","CKD")
+species_colors <- c("#F8C471","#85C1E9","#85C1E9", "#F8C471", "#F8C471","#85C1E9", "#F8C471", "#F8C471","#F8C471",
+                    "#F8C471","#F8C471","#85C1E9", "#85C1E9", "#85C1E9", "#F8C471","#F8C471","#85C1E9")
+names(species_colors) <- c("mouse","human","human", "mouse", "mouse","human", "mouse", "mouse","mouse",
+                           "mouse","mouse","human", "human", "human", "mouse","mouse","human") #"#F8C471", #mouse; #"#85C1E9", #human
 column_ha_cluster <- HeatmapAnnotation(
-  Data_set = names(cluster_colors),
-  col = list(Data_set = cluster_colors),
+  Phenotype = names(cluster_colors),
+  col = list(Phenotype = cluster_colors),
   simple_anno_size = unit(5, "mm"),
   annotation_name_gp = gpar(fontsize = 20),
   annotation_name_side = "left",
-  show_annotation_name=FALSE,
-  show_legend = TRUE,
+  show_annotation_name=F,
+  show_legend = T,
   annotation_legend_param = list(
-    Data_set = list(
+    Phenotype = list(
       title_position= "topleft",
       title_gp = gpar(fontsize = 20, 
                       fontface = "bold"),
       labels_gp = gpar(fontsize = 20))))
-
 
 column_ha_species <- HeatmapAnnotation(
   Species = names(species_colors),
@@ -569,8 +494,8 @@ column_ha_species <- HeatmapAnnotation(
   simple_anno_size = unit(5, "mm"),
   annotation_name_gp = gpar(fontsize = 20),
   annotation_name_side = "left",
-  show_annotation_name=FALSE,
-  show_legend = TRUE,
+  show_annotation_name=F,
+  show_legend = T,
   annotation_legend_param = list(
     Species = list(
       title_position= "topleft",
@@ -578,79 +503,32 @@ column_ha_species <- HeatmapAnnotation(
                       fontface = "bold"),
       labels_gp = gpar(fontsize = 20))))
 
-
-# rename rows (pathways) with new names defined in "new_rownames.csv":
+# rename rows (pathways) with more readable names defined in "new_rownames.csv":
 new_rownames<-read.csv("new_rownames.csv", header=T)
-
-# charakter vektor of rownames(cp_mice_x_human_mat2)
 rownames_original<-rownames(cp_mice_x_human_mat2)
-
-# df[match(target, df$name),]
 new_rownames<-new_rownames[match(rownames_original, new_rownames$ID),]
-
-# df2 <- subset(df, select = -c(id, name, chapters))
 new_rownames$ID<-NULL   # short alternative to subset()
-
-# rename column
 names(new_rownames)[names(new_rownames) == "new_rownames"] <- "ID"
-
-# replacing rownames by new rownames (in charakter vektor)
 rownames(cp_mice_x_human_mat2) <- new_rownames$ID
 
+# remove duplicate pathways:
+cp_mice_x_human_mat3<-cp_mice_x_human_mat2[-c(1,3,5,6,8,10,14,15,16,17,19,20,21,23,30,31,32,34,37,39,41,42,45,46,47,48,52),]
 
-
-# remove rows (pathways), that are similiar to others:
-cp_mice_x_human_mat3<-cp_mice_x_human_mat2[
-  -c(1,4:6,8,10,14:15,17:18,20:22,24,32:34,36:37,40,42,44:45,48:50,55,57),]
-
-
-# rename columns
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Abedini_Control"] <- "Abedini"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Abedini_CKD"] <- "Abedini"
-
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Hinze_Control"] <- "Hinze"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Hinze_AKI"] <- "Hinze"
-
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Lake_LD"] <- "Lake"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Lake_AKI"] <- "Lake"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "h_Lake_CKD"] <- "Lake"
-
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Doke_Control"] <- "Doke"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Doke_UUO"] <- "Doke"
-
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Kirita_Control"] <- "Kirita"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Kirita_4hours"] <- "Kirita_4hrs"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Kirita_12hours"] <- "Kirita_12hrs"
-
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_Control"] <- "Balzer"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_AKI_1d"] <- "Balzer_1d"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_AKI_3d"] <- "Balzer_3d"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_AKI_14d"] <- "Balzer_14d"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_CKD_1d"] <- "Balzer_1d"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_CKD_3d"] <- "Balzer_3d"
-colnames(cp_mice_x_human_mat3)[colnames(cp_mice_x_human_mat3) == "m_Balzer_CKD_14d"] <- "Balzer_14d"
-
-
-#---HEATMAP----
-
+# plot
 heatmap<-ComplexHeatmap::Heatmap(
   cp_mice_x_human_mat3, "-log10(q)",
   na_col="white",
   col= colorRampPalette(c("white", "#241346"))(n=200),
-  cluster_rows=F,
-  row_order = c(13,16,21,14,8,12,28,27,9,12,30,3:4,6,18,17,5,19,22,24,11,2,26,7,20,15,29,23,1,10),
+  cluster_rows=T,
   width= unit(30, "cm"), height=unit(30,"cm"),
   row_names_gp=gpar(fontsize=28),
   cluster_columns= F,
-  column_order = c(1:2,5,4,6,3,7, #Control
-                   8:13, #aki
-                   17,14,15,18,19,16), #ckd
   top_annotation = column_ha_cluster,
   bottom_annotation= column_ha_species,
   show_heatmap_legend = T,
   column_names_gp=gpar(fontsize=28),
   column_names_rot = 45,
-  use_raster = TRUE,
+  use_raster = T,
   heatmap_legend_param = list(title = "-log10(q)",
                               title_gp = gpar(col = "black", fontsize = 20, fontface="bold"),
                               legend_height = unit(16, "cm"),
@@ -658,11 +536,7 @@ heatmap<-ComplexHeatmap::Heatmap(
                               title_position = "topleft",
                               direction = "vertical",
                               labels_gp = gpar(fontsize= 20, fontface = "bold")))
-
-
 heatmap=draw(heatmap, heatmap_legend_side = "left", annotation_legend_side = "left")
-
-pdf('HEATMAP.pdf', width=26, height=16)
+pdf('../Results/Enrichment_heatmap.pdf', width=26, height=16)
 heatmap
 dev.off()
-
