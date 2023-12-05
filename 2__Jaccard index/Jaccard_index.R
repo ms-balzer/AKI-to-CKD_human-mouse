@@ -19,7 +19,7 @@ jaccard <- function(a, b) {
 
 #example use case (iterate over all combinations of interest)
 a <- Abedini_CKD_GOI
-b <- Kirita_14days_GOI
+b <- Hinze_CKD_GOI
 jaccard(a,b)
 
 
