@@ -20,7 +20,7 @@ library(europepmc)
 library(viridis)
 set.seed(123)
 rm(list=ls())
-setwd('/.../aki_to_ckd')
+setwd('/.../4__Enrichment\ analysis/')
 
 
 
@@ -56,9 +56,9 @@ msig_combined_gene_sets <- rbind(msig_CP_BioCarta, msig_CP_KEGG, msig_CP_PID, ms
 human_hinze_2groups = read.csv("Hinze__human.csv", header=T)
 human_lake_3groups = read.csv("Lake__human.csv", header=T)
 human_abedini_2groups = read.csv("Abedini__human.csv")
-mouse_balzer_7groups = read.csv("Balzer__mouse__DEGs_by_exp.time_7groups_HUMAN_genenames.csv", header=T)
-mouse_doke_2groups = read.csv("Doke__mouse__DEGs_by_Groups_2groups_HUMAN_genenames.csv", header=T)
-mouse_kirita_6groups = read.csv("Kirita__mouse__DEGs_by_time.pod_6groups_HUMAN_genenames.csv", header=T)
+mouse_balzer_7groups = read.csv("Balzer__mouse__human_genenames.csv", header=T)
+mouse_doke_2groups = read.csv("Doke__mouse__human_genenames.csv", header=T)
+mouse_kirita_6groups = read.csv("Kirita__mouse__human_genenames.csv", header=T)
 
 mouse_balzer_7groups$gene <- NULL
 mouse_doke_2groups$gene <- NULL
