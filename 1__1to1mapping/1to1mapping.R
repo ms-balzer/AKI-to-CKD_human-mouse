@@ -1,6 +1,6 @@
 library(biomaRt)
 set.seed(123)
-setwd('.../1__1to1mapping/')
+setwd('/.../1__1to1mapping/')
 
 
 
