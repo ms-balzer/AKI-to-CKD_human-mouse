@@ -4,7 +4,7 @@ library(viridis)
 library(ComplexHeatmap)
 set.seed(123)
 rm(list=ls())
-setwd('/../2__Jaccard\ index/')
+setwd('/.../2__Jaccard\ index/')
 
 
 
