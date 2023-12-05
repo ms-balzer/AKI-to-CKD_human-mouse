@@ -51,26 +51,37 @@ pymn.MetaNeighborUS(adata,
                     ct_col='cell.type',
                     fast_version=True)
 
+
+
+
+#=========== Step 3: Stringent assessment of replicability with one-vs-best AUROCs ===========
+#get hierarchical replicability AUROC scores
+pymn.MetaNeighborUS(adata,
+                    study_col='study_id',
+                    ct_col='cell.type',
+                    fast_version=True,
+                    symmetric_output=False,
+                    one_vs_best=True)
+
+adata.uns['MetaNeighborUS_1v1']
+df = pd.DataFrame(adata.uns['MetaNeighborUS_1v1'])
+df.to_csv("MN_one-vs-best.csv")
+                    
 plt.figure()
 dummy = ['#C00000', '#00B050', '#F00000', '#C00000', '#00B050', '#FFFF00', '#C00000', '#00B050', '#F00000', '#00B050', '#F00000', '#C00000', '#00B050', '#F00000', '#C00000', '#00B050']
 name1 = list(adata.uns["MetaNeighborUS"])
 col_colors1 = pd.Series(dummy, index=name1, name="lab")
-pymn.plotMetaNeighborUS(adata, figsize=(14, 14.5), cmap='coolwarm', fontsize=22, 
+pymn.plotMetaNeighborUS(adata,
+                        cmap='coolwarm',
+                        figsize=(20, 20),
+                        mn_key='MetaNeighborUS_1v1',
+                        xticklabels=True,
+                        yticklabels=True,
+                        fontsize=20,
                         col_colors=col_colors1, 
                         dendrogram_ratio=(0, .05),
-                        cbar_pos=None) #tuple of (left, bottom, width, height), optional
-plt.savefig('plotMetaNeighborUS3.svg')
-
-adata.uns['MetaNeighborUS']
-df = pd.DataFrame(adata.uns['MetaNeighborUS'])
-df.to_csv("MN.csv")
-
-pymn.topHits(adata, threshold=0.8)
-adata.uns['MetaNeighborUS_topHits']
-df = pd.DataFrame(adata.uns['MetaNeighborUS_topHits'])
-df.to_csv("MN_topHits.csv")
+                        cbar_pos=None)
+plt.savefig('plotMetaNeighborUS_one_vs_best_annotation.pdf')
 
 #save outfile
 adata.write('merge_13k_shared_genes_x_641k_cells_afterpymn.h5ad')
-
-
